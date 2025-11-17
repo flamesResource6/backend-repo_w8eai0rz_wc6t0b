@@ -1,48 +1,83 @@
 """
-Database Schemas
+Database Schemas for the Clothing Store
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
+Each Pydantic model maps to a MongoDB collection using the lowercased class name.
 
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Conventions:
+- class Product -> collection "product"
+- class Category -> collection "category"
+- class Order -> collection "order"
+
+These schemas are used for validation and for the built-in database helper utilities.
 """
-
+from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
-from typing import Optional
 
-# Example schemas (replace with your own):
+AccentColor = Literal["neutral", "black", "white", "slate", "stone", "zinc"]
 
-class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+class Category(BaseModel):
+    name: str = Field(..., description="Category display name")
+    slug: str = Field(..., description="URL slug, unique")
+    gender: Optional[Literal["men", "women", "kids", "unisex", "accessories"]] = None
+    banner_image: Optional[str] = Field(None, description="Hero image URL")
+    accent: Optional[AccentColor] = "neutral"
 
 class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
+    title: str
+    description: Optional[str] = None
+    price: float = Field(..., ge=0)
+    category: str = Field(..., description="Category slug, e.g., 'men' or 'women' or 'accessories'")
+    subcategory: Optional[str] = Field(None, description="More specific type e.g. 'shirts', 'outerwear'")
+    gender: Optional[Literal["men", "women", "kids", "unisex"]] = None
+    sizes: List[str] = Field(default_factory=list)
+    colors: List[str] = Field(default_factory=list)
+    images: List[str] = Field(default_factory=list)
+    in_stock: bool = True
+    is_new: bool = False
+    is_on_sale: bool = False
+    sale_percent: Optional[int] = Field(None, ge=0, le=90)
+    tags: List[str] = Field(default_factory=list)
+    rating: Optional[float] = Field(None, ge=0, le=5)
 
-# Add your own schemas here:
-# --------------------------------------------------
+class Address(BaseModel):
+    full_name: str
+    line1: str
+    line2: Optional[str] = None
+    city: str
+    state: str
+    postal_code: str
+    country: str
+    phone: Optional[str] = None
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+class OrderItem(BaseModel):
+    product_id: str
+    title: str
+    price: float
+    quantity: int = Field(..., ge=1)
+    size: Optional[str] = None
+    color: Optional[str] = None
+    image: Optional[str] = None
+
+class Order(BaseModel):
+    user_id: str
+    items: List[OrderItem]
+    total: float
+    status: Literal["pending","paid","shipped","delivered","cancelled"] = "pending"
+    shipping_address: Address
+
+class SavedItem(BaseModel):
+    user_id: str
+    product_id: str
+
+class CartItem(BaseModel):
+    cart_id: str
+    product_id: str
+    quantity: int = Field(..., ge=1)
+    size: Optional[str] = None
+    color: Optional[str] = None
+
+class User(BaseModel):
+    name: str
+    email: str
+    is_active: bool = True
+    default_address: Optional[Address] = None
